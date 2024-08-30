@@ -1,4 +1,4 @@
-const { expect } = require("chai");
+const { expect, util } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("MultiSig Contract", function () {
@@ -26,41 +26,19 @@ describe("MultiSig Contract", function () {
 
    it("Should execute a withdrawal with valid signatures", async function () {
         const { multiSig, token, signer1, signer2, addr1 } = await deployFixture();
-
+        console.log("This is our addresses: ", signer1.address, signer2.address);
         const tokens = [token.target];
         const amounts = [ethers.parseEther("100")];
         const ethAmount = ethers.parseEther("1");
 
         await token.mint(multiSig.target, amounts[0]);
         await addr1.sendTransaction({ to: multiSig.target, value: ethAmount });
-
-        // Dynamically fetch the chain ID
-        const chainId = await ethers.provider.getNetwork().then((n) => n.chainId);
-
-        const domain = {
-            name: "MultiSig",
-            version: "1.0",
-            chainId, // Ensure this is dynamic
-            verifyingContract: multiSig.target,
-        };
-
-        const types = {
-            Withdrawal: [
-                { name: "tokens", type: "address[]" },
-                { name: "amounts", type: "uint256[]" },
-                { name: "ethAmount", type: "uint256" },
-            ],
-        };
-
-        const values = {
-            tokens,
-            amounts,
-            ethAmount,
-        };
-
-        const signature1 = await signer1._signTypedData(domain, types, values);
-        const signature2 = await signer2._signTypedData(domain, types, values);
-
+    ethers.arr
+        const withdrawMessageHash = ethers.keccak256(ethers.toUtf8Bytes("WITHDRAWAL"));
+        console.log("Withdrawal message hash: ", withdrawMessageHash);
+        const signature1 = await signer1.signMessage(ethers.getBytes(withdrawMessageHash));
+        const signature2 = await signer2.signMessage(ethers.getBytes(withdrawMessageHash));
+        // console.log("Signature1: ", signature1, "Signature2: ", signature2);
         const tx = await multiSig.connect(signer1).withdrawal(tokens, amounts, ethAmount, [signature1, signature2]);
 
         await expect(tx)
